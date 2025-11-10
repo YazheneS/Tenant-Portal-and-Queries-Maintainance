@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Tenant Portal Chat</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background: #f4f6f8;
+        margin: 0;
+      }
+      .chat-container {
+        max-width: 600px;
+        margin: 40px auto;
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 0 10px #ccc;
+        padding: 20px;
+      }
+      .chat-messages {
+        height: 300px;
+        overflow-y: auto;
+        border: 1px solid #eee;
+        padding: 10px;
+        margin-bottom: 15px;
+        background: #fafbfc;
+      }
+      .chat-message {
+        margin-bottom: 10px;
+      }
+      .chat-message .sender {
+        font-weight: bold;
+        color: #2c3e50;
+      }
+      .chat-message .timestamp {
+        font-size: 0.8em;
+        color: #888;
+        margin-left: 8px;
+      }
+      .chat-form {
+        display: flex;
+        gap: 10px;
+      }
+      .chat-form input,
+      .chat-form textarea {
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+      .chat-form input {
+        width: 120px;
+      }
+      .chat-form textarea {
+        flex: 1;
+        resize: none;
+      }
+      .chat-form button {
+        background: #2c3e50;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        padding: 8px 16px;
+        cursor: pointer;
+      }
+      .chat-form button:hover:enabled {
+        background: #34495e;
+      }
+      .chat-form button:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="chat-container">
+      <h2>Community Chat</h2>
+      <div class="chat-messages" id="chatMessages"></div>
+      <form class="chat-form" id="chatForm">
+        <input type="text" id="sender" placeholder="Your name" required />
+        <textarea id="content" placeholder="Type your message..." required></textarea>
+        <button type="submit" id="sendButton" disabled>Send</button>
+        <button type="button" id="deleteLatest">Delete Last Message</button>
+      </form>
+    </div>
+
+    <script>
+      const storageKey = "tenant_chat_messages";
+      let messages = JSON.parse(localStorage.getItem(storageKey) || "[]");
+
+      function escapeHtml(str) {
+        return str.replace(/[&<>"']/g, (m) => ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;",
+        }[m]));
+      }
+
+      function saveMessages() {
+        localStorage.setItem(storageKey, JSON.stringify(messages));
+      }
+
+      function renderMessages() {
+        const chat = document.getElementById("chatMessages");
+        chat.innerHTML = "";
+        messages.forEach((msg) => {
+          const div = document.createElement("div");
+          div.className = "chat-message";
+          div.innerHTML = `
+            <span class="sender">${escapeHtml(msg.sender)}</span>
+            <span class="timestamp">${new Date(msg.timestamp).toLocaleString()}</span>
+            <div>${escapeHtml(msg.content)}</div>
+          `;
+          chat.appendChild(div);
+        });
+        chat.scrollTop = chat.scrollHeight;
+      }
+
+      const senderInput = document.getElementById("sender");
+      const msgInput = document.getElementById("content");
+      const sendButton = document.getElementById("sendButton");
+      const deleteButton = document.getElementById("deleteLatest");
+
+      function validateInputs() {
+        const name = senderInput.value.trim();
+        const msg = msgInput.value.trim();
+        const validName = /^[A-Za-z]{3,}$/.test(name); // letters only, ≥3 chars
+        const validMsg = msg.length >= 10;
+        sendButton.disabled = !(validName && validMsg);
+      }
+
+      senderInput.addEventListener("input", validateInputs);
+      msgInput.addEventListener("input", validateInputs);
+
+      document.getElementById("chatForm").addEventListener("submit", (e) => {
+        e.preventDefault();
+        if (sendButton.disabled) return;
+
+        const sender = senderInput.value.trim();
+        const content = msgInput.value.trim();
+        const msg = { sender, content, timestamp: Date.now() };
+
+        messages.push(msg);
+        saveMessages();
+        renderMessages();
+        msgInput.value = "";
+        validateInputs();
+      });
+
+      deleteButton.addEventListener("click", () => {
+        messages.pop();
+        saveMessages();
+        renderMessages();
+      });
+
+      renderMessages();
+    </script>
+  </body>
+</html>

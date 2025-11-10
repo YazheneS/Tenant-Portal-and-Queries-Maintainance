@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portal Login</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f4f6f8;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 400px;
+      margin: 60px auto;
+      background-color: #ffffff;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    h1 {
+      color: #23057e;
+      margin-bottom: 10px;
+    }
+    h3, h4 {
+      color: #100f0f;
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      text-align: left;
+      margin: 10px 0 5px;
+      color: #180556;
+    }
+    input, select {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      margin-bottom: 10px;
+    }
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      background-color: #120d74;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #100a68;
+    }
+    a {
+      color: #2c3e50;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1> Tenant Portal Login</h1>
+    <h3>Your one-stop solution for housing management</h3>
+    <h4>Login to Continue</h4>
+    <form onsubmit="return redirectBasedOnRole()" method="post">
+      <label for="username">Username:</label>
+      <input type="text" name="username" id="username" required>
+
+      <label for="password">Password:</label>
+      <input type="password" name="password" id="password" required>
+
+      <label for="role">Role:</label>
+      <select name="role" id="role" required>
+        <option value="">-- Select Role --</option>
+        <option value="admin">Admin</option>
+        <option value="tenant">Tenant</option>
+      </select>
+
+      <button type="submit">Login</button>
+    </form>
+    <p>New Tenant? <a href="register.html">Register Here</a></p>
+  </div>
+
+<script>
+  function redirectBasedOnRole() {
+    const role = document.getElementById("role").value;
+    const username = document.getElementById("username").value.trim();
+    const password = document.getElementById("password").value.trim();
+
+    // Check if all fields are filled
+    if (!username || !password || !role) {
+      alert("Please fill all fields!");
+      return false; // Stop submission
+    }
+
+    // Redirect based on role
+    if (role === "admin") {
+      window.location.href = "admin final.html"; // Redirect admin
+      return false; // Prevent default form submission
+    } else if (role === "tenant") {
+      window.location.href = "tenantdashboard.html"; // Redirect tenant
+      return false; // Prevent default form submission
+    }
+
+    return true; // Fallback (should not reach here)
+  }
+</script>
+
+</body>
+</html>

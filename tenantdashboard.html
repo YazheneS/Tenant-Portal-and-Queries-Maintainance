@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tenant Dashboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f6f8;
+      margin: 0;
+      padding: 0;
+    }
+
+    header {
+      background-color: #60106e;
+      color: white;
+      text-align: center;
+      padding: 15px;
+      font-size: 22px;
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+      padding: 20px;
+    }
+
+    .card {
+      background-color: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    h3 {
+      color: #333;
+      margin-bottom: 10px;
+    }
+
+    textarea {
+      width: 100%;
+      height: 80px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      padding: 8px;
+      resize: none;
+    }
+
+    button {
+      background-color: #4e0951;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      margin-top: 10px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #550b4d;
+    }
+
+    iframe {
+      width: 100%;
+      height: 250px;
+      border: none;
+      border-radius: 12px;
+    }
+
+    .solved {
+      color: green;
+      font-weight: bold;
+    }
+
+    .pending {
+      color: red;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <header>Tenant Dashboard</header>
+  <div class="container">
+    <!-- Tenant Details -->
+    <div class="card">
+      <h3>Tenant Details</h3>
+      <p><strong>Name:</strong> Kathirvel</p>
+      <p><strong>Flat No:</strong> A-102</p>
+      <p><strong>Contact:</strong> 9876543210</p>
+    </div>
+    <!-- Rent Status -->
+    <div class="card">
+      <h3>Rent Status</h3>
+      <p><strong>Amount:</strong> ₹12,000</p>
+      <p><strong>Due Date:</strong> 10 Oct 2025</p>
+      <p><strong>Status:</strong> <span style="color:rgb(91, 11, 88);">Paid</span></p>
+    </div>
+   <!-- Complaint Status -->
+    <div class="card">
+      <h3>Complaint Status</h3>
+      <ul id="complaintList">
+        <li>
+          Leaking tap - <span class="solved">Resolved</span>
+        </li>
+        <li>
+          Lift not working - <span class="pending">Pending</span>
+          <button onclick="markAsSolved(this)">Mark as Solved</button>
+        </li>
+      </ul>
+    </div>
+    <!-- Complaint Box -->
+    <div class="card">
+      <h3>Submit New Complaint</h3>
+      <form id="complaintForm">
+        <textarea name="complaint" id="complaintText" placeholder="Describe your issue..." required></textarea>
+        <button type="submit">Submit</button>
+      </form>
+    </div>
+    <!-- Community Chat -->
+    <div class="card" style="grid-column: span 2;">
+      <h3>Community Chat</h3>
+      <iframe src="chat.html"></iframe>
+    </div>
+  </div>
+  <script>
+    function markAsSolved(button) {
+      const listItem = button.parentElement;
+      const statusSpan = listItem.querySelector("span");
+      statusSpan.textContent = "Resolved";
+      statusSpan.className = "solved";
+      button.remove(); 
+      alert("Complaint marked as solved!");
+    }
+     document.getElementById("complaintForm").addEventListener("submit", function(event) {
+      event.preventDefault();
+      const complaintText = document.getElementById("complaintText").value.trim();
+      if (complaintText !== "") {
+        const li = document.createElement("li");
+        li.innerHTML = `${complaintText} - <span class="pending">Pending</span> 
+                        <button onclick="markAsSolved(this)">Mark as Solved</button>`;
+        document.getElementById("complaintList").appendChild(li);
+        document.getElementById("complaintText").value = "";
+      }
+    });
+  </script>
+
+</body>
+</html>

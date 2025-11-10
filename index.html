@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tenant Rent Payment</title>
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #f4f6f8;
+  margin: 0;
+}
+.container {
+  min-height: 100vh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 0;
+}
+.card {
+  width: 100%;
+  max-width: 600px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 0 10px #ccc;
+  padding: 24px 24px 32px 24px;
+  margin: 40px 0;
+}
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.title {
+  font-size: 22px;
+  font-weight: 700;
+}
+.subtitle {
+  color: #6b7280;
+  margin-top: 4px;
+}
+.amount-box {
+  margin-top: 24px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+.amount {
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+.muted {
+  color: #6b7280;
+}
+.pay-row {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 20px;
+}
+@media (max-width: 800px) {
+  .pay-row { grid-template-columns: 1fr; }
+}
+.box {
+  background: #fafbfc;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  padding: 16px;
+}
+.upi-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.upi-id {
+  font-family: "SFMono-Regular", Consolas, Menlo, monospace;
+  background: #f9fafb;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+}
+.actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 14px;
+}
+.btn {
+  appearance: none;
+  border: 1px solid #2c3e50;
+  background: #2c3e50;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-weight: bold;
+  cursor: pointer;
+  color: #fff;
+  transition: background 0.2s;
+}
+.btn-secondary, .btn-danger {
+  background: #2c3e50;
+  color: #fff;
+  border: 1px solid #2c3e50;
+}
+.btn-danger {
+  border-color: #2c3e50;
+  color: #fff;
+}
+.btn:hover {
+  background: #34495e;
+  
+}
+.btn-secondary:hover, .btn-danger:hover {
+  background: #34495e;
+}
+.info {
+  margin-top: 10px;
+  font-size: 12px;
+  color: #6b7280;
+}
+.qr {
+  width: 100%;
+  aspect-ratio: 1/1;
+  background: #fff;
+  border: 1px dashed #e5e7eb;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+.qr img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.result {
+  text-align: center;
+}
+.result .icon-big {
+  font-size: 58px;
+  margin-bottom: 8px;
+  color: #111111;
+}
+.success, .failed, .warning {
+  color: #111111;
+}
+.footer-note {
+  margin-top: 18px;
+  font-size: 12px;
+  color: #6b7280;
+  text-align: center;
+}
+#status-box {
+  display: none;
+  text-align: center;
+  border: 1px solid #e5e7eb;
+  padding: 10px;
+  border-radius: 6px;
+  margin-top: 10px;
+  background: #fafbfc;
+}
+</style>
+<script defer>
+  const API_BASE = "http://localhost:8081/api";
+  let currentPayment = null;
+
+  async function apiGet(path) {
+    const res = await fetch(`${API_BASE}${path}`);
+    if (!res.ok) throw new Error(`GET ${path} failed`);
+    return res.json();
+  }
+
+  async function apiPost(path) {
+    const res = await fetch(`${API_BASE}${path}`, { method: "POST" });
+    if (!res.ok) throw new Error(`POST ${path} failed`);
+    return res.json();
+  }
+
+  function setText(id, text) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  }
+
+  function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+      alert("Copied!");
+    });
+  }
+
+  function showStatus(message) {
+    const box = document.getElementById("status-box");
+    if (!box) return;
+    box.style.display = "block";
+    box.textContent = message;
+  }
+
+  async function markSuccess() {
+    if (!currentPayment?.id) return;
+    try {
+      const updated = await apiPost(`/payments/${currentPayment.id}/success`);
+      currentPayment = updated;
+      showStatus("Payment marked as SUCCESS. Please verify in your UPI app.");
+      alert("Payment marked as SUCCESS. Please verify in your UPI app.");
+    } catch (e) {
+      console.error(e);
+      showStatus("Failed to mark payment as success.");
+      alert("Failed to mark payment as success.");
+    }
+  }
+
+  async function markFailed() {
+    if (!currentPayment?.id) return;
+    try {
+      const updated = await apiPost(`/payments/${currentPayment.id}/failed`);
+      currentPayment = updated;
+      showStatus("Payment marked as FAILED. If amount was debited, check for reversal.");
+      alert("Payment marked as FAILED. If amount was debited, check for reversal.");
+    } catch (e) {
+      console.error(e);
+      showStatus("Failed to mark payment as failed.");
+      alert("Failed to mark payment as failed.");
+    }
+  }
+
+  async function init() {
+    try {
+      const cfg = await apiGet("/config");
+      setText("owner-name", cfg.ownerName || "Owner");
+      setText("amount", `₹ ${cfg.amountINR || "0.00"}`);
+      setText("upi-id", cfg.upiId || "");
+
+      currentPayment = await apiPost("/payments");
+      const upiUrl = currentPayment.upiUrl;
+      const qrUrl = currentPayment.qrUrl;
+
+      const qrImg = document.getElementById("qr-img");
+      if (qrImg && qrUrl) {
+        qrImg.src = qrUrl;
+        qrImg.alt = "Scan to pay via UPI";
+      }
+      const link = document.getElementById("raw-link");
+      if (link && upiUrl) {
+        link.href = upiUrl;
+        link.textContent = upiUrl;
+      }
+
+      const payBtn = document.getElementById("pay-now");
+      payBtn?.addEventListener("click", () => {
+        if (!currentPayment?.upiUrl) return;
+        window.location.href = currentPayment.upiUrl;
+        setTimeout(() => {
+          if (!document.hidden) {
+            alert("If your UPI app didn't open, scan the QR or copy the link.");
+          }
+        }, 1200);
+      });
+
+      document.getElementById("copy-upi")?.addEventListener("click", () => copyToClipboard(cfg.upiId || ""));
+      document.getElementById("copy-amount")?.addEventListener("click", () => copyToClipboard(cfg.amountINR || ""));
+
+      document.getElementById("mark-success")?.addEventListener("click", markSuccess);
+      document.getElementById("mark-failed")?.addEventListener("click", markFailed);
+    } catch (e) {
+      console.error(e);
+      alert("Failed to load backend. Is the server running at http://localhost:8081?");
+    }
+  }
+
+  window.addEventListener("DOMContentLoaded", init);
+</script>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <div class="header">
+        <div>
+          <div class="title">Rent Payment</div>
+          <div class="subtitle">Pay your monthly rent to <span id="owner-name">Owner</span></div>
+        </div>
+      </div>
+
+      <div id="status-box" class="info"></div>
+
+      <div class="amount-box">
+        <div class="amount" id="amount">₹ 0.00</div>
+      </div>
+
+      <div class="pay-row" style="margin-top:20px;">
+        <div class="box">
+          <div class="upi-row">
+            <div class="muted">UPI ID</div>
+            <div class="upi-id" id="upi-id">owner@upi</div>
+          </div>
+          <div class="actions">
+            <button id="pay-now" class="btn">Pay Now (UPI App)</button>
+            <button id="copy-upi" class="btn btn-secondary">Copy UPI</button>
+            <button id="copy-amount" class="btn btn-secondary">Copy Amount</button>
+          </div>
+          <div class="info">If Pay opens in browser, choose your UPI app (GPay, PhonePe, Paytm).</div>
+          <div class="info">Link: <a id="raw-link" href="#" target="_blank" rel="noopener noreferrer">upi://pay</a></div>
+        </div>
+        <div class="box">
+          <div class="qr">
+            <img id="qr-img" src="" alt="UPI QR" />
+          </div>
+          <div class="info" style="text-align:center;">Scan with any UPI app</div>
+        </div>
+      </div>
+
+      <div class="footer-note">After payment, you can record the result below for your reference.</div>
+      <div class="actions" style="justify-content:flex-end;">
+        <button id="mark-success" class="btn btn-secondary">Mark Success</button>
+        <button id="mark-failed" class="btn btn-danger">Mark Failed</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
