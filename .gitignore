@@ -1,0 +1,27 @@
+# Spring Boot
+target/
+*.class
+*.jar
+*.war
+*.log
+.mvn/
+
+# React / Node
+node_modules/
+dist/
+build/
+.env
+.env.local
+
+# IntelliJ
+.idea/
+*.iml
+*.iws
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Media (move these out of repo)
+*.mp4
+*.mp4
