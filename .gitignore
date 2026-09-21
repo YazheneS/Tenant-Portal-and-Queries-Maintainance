@@ -1,3 +1,5 @@
+frontend/.env
+
 # Spring Boot
 target/
 *.class
