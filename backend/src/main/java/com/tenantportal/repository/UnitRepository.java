@@ -1,0 +1,11 @@
+package com.tenantportal.repository;
+
+import com.tenantportal.model.Unit;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
+
+public interface UnitRepository extends JpaRepository<Unit, Long> {
+    List<Unit> findByPropertyId(Long propertyId);
+    List<Unit> findByIsOccupied(Boolean isOccupied);
+}

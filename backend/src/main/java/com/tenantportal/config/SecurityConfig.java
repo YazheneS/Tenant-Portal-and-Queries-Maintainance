@@ -16,6 +16,7 @@ import org.springframework.security.oauth2.jwt.*;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -70,7 +71,11 @@ public class SecurityConfig {
                                 .decoder(clerkJwtDecoder())
                                 .jwtAuthenticationConverter(clerkAuthenticationConverter())
                         )
-                );
+                )
+                // Rate limit the vendor token-lookup surface — runs before Spring
+                // Security's own auth handling since vendor routes are permitAll()
+                // anyway and don't need the authentication machinery to run first.
+                .addFilterBefore(new VendorRateLimitFilter(), BasicAuthenticationFilter.class);
         return http.build();
     }
 
