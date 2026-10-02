@@ -1,11 +1,13 @@
 package com.tenantportal.controller;
 
 import com.tenantportal.config.CurrentUser;
+import com.tenantportal.dto.AddLineItemRequest;
 import com.tenantportal.dto.AssignVendorRequest;
 import com.tenantportal.dto.CreateBillRequest;
 import com.tenantportal.dto.ResolveDisputeRequest;
 import com.tenantportal.model.Bill;
 import com.tenantportal.model.BillDispute;
+import com.tenantportal.model.BillLineItem;
 import com.tenantportal.model.MaintenanceQuery;
 import com.tenantportal.model.Property;
 import com.tenantportal.model.RentAgreement;
@@ -74,8 +76,8 @@ public class AdminController {
     }
 
     @PostMapping("/units")
-    public Unit createUnit(@RequestBody Unit unit) {
-        return unitService.create(unit, currentUser.clerkUserId());
+    public Unit createUnit(@RequestBody com.tenantportal.dto.CreateUnitRequest request) {
+        return unitService.create(request, currentUser.clerkUserId());
     }
 
     @PutMapping("/units/{id}")
@@ -129,6 +131,12 @@ public class AdminController {
         return billService.markPaid(id, amount, currentUser.clerkUserId());
     }
 
+    @PostMapping("/bills/{id}/line-items")
+    public BillLineItem addLineItem(@PathVariable Long id, @RequestBody AddLineItemRequest request) {
+        return billService.addLineItem(id, request.type(), request.description(),
+                request.amount(), request.units(), request.ratePerUnit(), currentUser.clerkUserId());
+    }
+
     @GetMapping("/disputes")
     public List<BillDispute> openDisputes() {
         return billDisputeService.findByStatus(BillDispute.Status.RAISED);
@@ -147,8 +155,8 @@ public class AdminController {
     // --- Rent Agreements (Module 6) ---
 
     @PostMapping("/rent-agreements")
-    public RentAgreement createRentAgreement(@RequestBody RentAgreement agreement) {
-        return rentAgreementService.create(agreement, currentUser.clerkUserId());
+    public RentAgreement createRentAgreement(@RequestBody com.tenantportal.dto.CreateRentAgreementRequest request) {
+        return rentAgreementService.create(request, currentUser.clerkUserId());
     }
 
     @GetMapping("/rent-agreements/unit/{unitId}")

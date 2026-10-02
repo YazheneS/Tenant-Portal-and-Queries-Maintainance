@@ -1,7 +1,12 @@
 package com.tenantportal.service;
 
+import com.tenantportal.dto.CreateRentAgreementRequest;
 import com.tenantportal.model.RentAgreement;
+import com.tenantportal.model.Tenant;
+import com.tenantportal.model.Unit;
 import com.tenantportal.repository.RentAgreementRepository;
+import com.tenantportal.repository.TenantRepository;
+import com.tenantportal.repository.UnitRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -27,6 +32,8 @@ import java.util.List;
 public class RentAgreementService {
 
     private final RentAgreementRepository rentAgreementRepository;
+    private final UnitRepository unitRepository;
+    private final TenantRepository tenantRepository;
     private final AuditService auditService;
     private final EmailService emailService;
 
@@ -39,14 +46,32 @@ public class RentAgreementService {
         return rentAgreementRepository.findByTenantId(tenantId);
     }
 
+    /**
+     * Resolves unit/tenant by id through their repositories rather than
+     * trusting nested objects from the request body — same
+     * TransientPropertyValueException risk as the Unit-creation bug fixed
+     * alongside this.
+     */
     @Transactional
-    public RentAgreement create(RentAgreement agreement, String performedByClerkId) {
+    public RentAgreement create(CreateRentAgreementRequest request, String performedByClerkId) {
+        Unit unit = unitRepository.findById(request.unitId())
+                .orElseThrow(() -> new EntityNotFoundException("Unit not found: " + request.unitId()));
+        Tenant tenant = tenantRepository.findById(request.tenantId())
+                .orElseThrow(() -> new EntityNotFoundException("Tenant not found: " + request.tenantId()));
+
+        RentAgreement agreement = new RentAgreement();
+        agreement.setUnit(unit);
+        agreement.setTenant(tenant);
+        agreement.setBaseRent(request.baseRent());
+        agreement.setEscalationPercent(request.escalationPercent());
+        agreement.setEscalationDayOfYear(request.escalationDayOfYear());
+        agreement.setStartDate(request.startDate());
         agreement.setIsActive(true);
         agreement.setNextEscalationDate(
-                agreement.getStartDate().plusYears(1).withDayOfYear(
-                        Math.min(agreement.getEscalationDayOfYear(),
-                                agreement.getStartDate().plusYears(1).lengthOfYear())));
-        agreement.setNextRentAmount(computeEscalatedRent(agreement.getBaseRent(), agreement.getEscalationPercent()));
+                request.startDate().plusYears(1).withDayOfYear(
+                        Math.min(request.escalationDayOfYear(),
+                                request.startDate().plusYears(1).lengthOfYear())));
+        agreement.setNextRentAmount(computeEscalatedRent(request.baseRent(), request.escalationPercent()));
 
         RentAgreement saved = rentAgreementRepository.save(agreement);
         auditService.log("RentAgreement", saved.getId(), "CREATED",
