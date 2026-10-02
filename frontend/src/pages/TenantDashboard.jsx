@@ -1,17 +1,83 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { UserButton } from '@clerk/clerk-react';
 import { useApiClient } from '../auth/apiClient';
+
+const sectionStyle = { marginTop: '2rem', paddingTop: '1rem', borderTop: '1px solid #ddd' };
 
 export default function TenantDashboard() {
   const api = useApiClient();
   const [queries, setQueries] = useState(null);
+  const [bills, setBills] = useState(null);
+  const [disputes, setDisputes] = useState(null);
+  const [rentAgreements, setRentAgreements] = useState(null);
   const [error, setError] = useState(null);
+  const [payingBillId, setPayingBillId] = useState(null);
 
-  useEffect(() => {
-    api.get('/api/tenant/maintenance-queries')
-      .then((res) => setQueries(res.data))
-      .catch((err) => setError(err.message));
+  const refreshAll = useCallback(() => {
+    api.get('/api/tenant/maintenance-queries').then((res) => setQueries(res.data)).catch((err) => setError(err.message));
+    api.get('/api/tenant/bills').then((res) => setBills(res.data)).catch((err) => setError(err.message));
+    api.get('/api/tenant/disputes').then((res) => setDisputes(res.data)).catch((err) => setError(err.message));
+    api.get('/api/tenant/rent-agreement').then((res) => setRentAgreements(res.data)).catch((err) => setError(err.message));
   }, [api]);
+
+  useEffect(() => { refreshAll(); }, [refreshAll]);
+
+  // Opens Razorpay's hosted Checkout widget (loaded via index.html's
+  // checkout.js script tag — not an npm package). On success, calls
+  // /api/tenant/payments/verify, which does the REAL signature check
+  // server-side — nothing here is trusted just because Checkout said "done."
+  const payBill = async (bill) => {
+    setPayingBillId(bill.id);
+    setError(null);
+    try {
+      const { data: payment } = await api.post('/api/tenant/payments/order', { billId: bill.id });
+
+      const options = {
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+        amount: Math.round(payment.amount * 100), // paise
+        currency: 'INR',
+        name: 'Tenant Portal',
+        description: `Bill #${bill.id} — ${bill.billMonth}/${bill.billYear}`,
+        order_id: payment.razorpayOrderId,
+        handler: async (response) => {
+          try {
+            await api.post('/api/tenant/payments/verify', {
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
+            });
+            refreshAll();
+          } catch (err) {
+            setError('Payment verification failed: ' + err.message);
+          } finally {
+            setPayingBillId(null);
+          }
+        },
+        modal: { ondismiss: () => setPayingBillId(null) },
+      };
+
+      if (!window.Razorpay) {
+        setError('Razorpay Checkout script did not load — check your connection.');
+        setPayingBillId(null);
+        return;
+      }
+      new window.Razorpay(options).open();
+    } catch (err) {
+      setError(err.response?.data?.error || err.message);
+      setPayingBillId(null);
+    }
+  };
+
+  const downloadReceipt = async (paymentId) => {
+    const res = await api.get(`/api/tenant/payments/${paymentId}/receipt`, { responseType: 'blob' });
+    const url = window.URL.createObjectURL(new Blob([res.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `receipt-${paymentId}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
 
   return (
     <div style={{ padding: '2rem' }}>
@@ -20,17 +86,69 @@ export default function TenantDashboard() {
         <UserButton />
       </div>
 
-      <h2>Your Maintenance Queries</h2>
       {error && <p style={{ color: 'red' }}>Error: {error}</p>}
-      {!error && !queries && <p>Loading...</p>}
+
+      <h2>Your Maintenance Queries</h2>
+      {!queries && <p>Loading...</p>}
       {queries && queries.length === 0 && <p>No open requests.</p>}
       {queries && queries.length > 0 && (
         <ul>
-          {queries.map((q) => (
-            <li key={q.id}>{q.title} — {q.status}</li>
-          ))}
+          {queries.map((q) => <li key={q.id}>{q.title} — {q.status}</li>)}
         </ul>
       )}
+
+      <div style={sectionStyle}>
+        <h2>Your Bills</h2>
+        {!bills && <p>Loading...</p>}
+        {bills && bills.length === 0 && <p>No bills yet.</p>}
+        {bills && bills.map((bill) => {
+          const due = bill.totalAmount - bill.paidAmount;
+          return (
+            <div key={bill.id} style={{ marginBottom: '0.75rem' }}>
+              <strong>Bill #{bill.id}</strong> — {bill.billMonth}/{bill.billYear} —
+              {' '}₹{bill.totalAmount} total, ₹{due} due — <em>{bill.status}</em>
+              {due > 0 && bill.status !== 'DISPUTED' && (
+                <button
+                  onClick={() => payBill(bill)}
+                  disabled={payingBillId === bill.id}
+                  style={{ marginLeft: '0.75rem' }}
+                >
+                  {payingBillId === bill.id ? 'Processing...' : 'Pay'}
+                </button>
+              )}
+              {bill.status === 'PAID' && (
+                <button onClick={() => downloadReceipt(bill.id)} style={{ marginLeft: '0.75rem' }}>
+                  Download Receipt
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={sectionStyle}>
+        <h2>Your Disputes</h2>
+        {!disputes && <p>Loading...</p>}
+        {disputes && disputes.length === 0 && <p>No disputes raised.</p>}
+        {disputes && disputes.map((d) => (
+          <div key={d.id}>
+            Dispute #{d.id} — {d.reason} — <em>{d.status}</em>
+            {d.ownerResponse && <> — Owner: {d.ownerResponse}</>}
+          </div>
+        ))}
+      </div>
+
+      <div style={sectionStyle}>
+        <h2>Rent Agreement</h2>
+        {!rentAgreements && <p>Loading...</p>}
+        {rentAgreements && rentAgreements.length === 0 && <p>No active agreement on file.</p>}
+        {rentAgreements && rentAgreements.map((a) => (
+          <div key={a.id}>
+            ₹{a.baseRent}/month, {a.escalationPercent}% escalation —
+            next change {a.nextEscalationDate}: ₹{a.nextRentAmount}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
