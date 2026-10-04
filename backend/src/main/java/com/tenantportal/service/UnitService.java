@@ -23,6 +23,10 @@ public class UnitService {
         return unitRepository.findByPropertyId(propertyId);
     }
 
+    public List<Unit> findAll() {
+        return unitRepository.findAll();
+    }
+
     public Unit getByIdOrThrow(Long id) {
         return unitRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Unit not found: " + id));

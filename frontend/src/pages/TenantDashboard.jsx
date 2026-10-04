@@ -1,46 +1,80 @@
 import { useEffect, useState, useCallback } from 'react';
-import { UserButton } from '@clerk/clerk-react';
 import { useApiClient } from '../auth/apiClient';
-
-const sectionStyle = { marginTop: '2rem', paddingTop: '1rem', borderTop: '1px solid #ddd' };
+import Layout from '../components/Layout';
+import StatusPill from '../components/StatusPill';
 
 export default function TenantDashboard() {
   const api = useApiClient();
   const [queries, setQueries] = useState(null);
   const [bills, setBills] = useState(null);
+  const [lineItemsByBill, setLineItemsByBill] = useState({});
   const [disputes, setDisputes] = useState(null);
   const [rentAgreements, setRentAgreements] = useState(null);
   const [error, setError] = useState(null);
   const [payingBillId, setPayingBillId] = useState(null);
+  const [expandedBillId, setExpandedBillId] = useState(null);
 
-  const [queryForm, setQueryForm] = useState({
-    title: '', description: '', category: 'PLUMBING', priority: 'MEDIUM',
-  });
+  const [queryForm, setQueryForm] = useState({ title: '', description: '', category: 'PLUMBING', priority: 'MEDIUM' });
   const [photoFile, setPhotoFile] = useState(null);
   const [submittingQuery, setSubmittingQuery] = useState(false);
 
+  const [disputeForm, setDisputeForm] = useState({ billId: '', lineItemId: '', reason: '' });
+
   const refreshAll = useCallback(() => {
-    api.get('/api/tenant/maintenance-queries').then((res) => setQueries(res.data)).catch((err) => setError(err.message));
-    api.get('/api/tenant/bills').then((res) => setBills(res.data)).catch((err) => setError(err.message));
-    api.get('/api/tenant/disputes').then((res) => setDisputes(res.data)).catch((err) => setError(err.message));
-    api.get('/api/tenant/rent-agreement').then((res) => setRentAgreements(res.data)).catch((err) => setError(err.message));
+    api.get('/api/tenant/maintenance-queries').then((res) => setQueries(res.data)).catch((err) => setError(err.response?.data?.error || err.message));
+    api.get('/api/tenant/bills').then((res) => setBills(res.data)).catch((err) => setError(err.response?.data?.error || err.message));
+    api.get('/api/tenant/disputes').then((res) => setDisputes(res.data)).catch((err) => setError(err.response?.data?.error || err.message));
+    api.get('/api/tenant/rent-agreement').then((res) => setRentAgreements(res.data)).catch((err) => setError(err.response?.data?.error || err.message));
   }, [api]);
 
   useEffect(() => { refreshAll(); }, [refreshAll]);
 
-  // Opens Razorpay's hosted Checkout widget (loaded via index.html's
-  // checkout.js script tag — not an npm package). On success, calls
-  // /api/tenant/payments/verify, which does the REAL signature check
-  // server-side — nothing here is trusted just because Checkout said "done."
+  // Fetches and caches a bill's line items if not already loaded. Shared by
+  // the "View items" toggle (display only) and the dispute form's line-item
+  // dropdown (needs the data but shouldn't affect the expand/collapse state).
+  const ensureLineItemsLoaded = useCallback(async (billId) => {
+    if (!billId || lineItemsByBill[billId]) return;
+    const { data } = await api.get(`/api/tenant/bills/${billId}/line-items`);
+    setLineItemsByBill((prev) => ({ ...prev, [billId]: data }));
+  }, [api, lineItemsByBill]);
+
+  const toggleLineItems = async (billId) => {
+    if (expandedBillId === billId) { setExpandedBillId(null); return; }
+    setExpandedBillId(billId);
+    await ensureLineItemsLoaded(billId);
+  };
+
+  const raiseQuery = async (e) => {
+    e.preventDefault();
+    setSubmittingQuery(true);
+    setError(null);
+    try {
+      let photoUrl = null;
+      if (photoFile) {
+        const formData = new FormData();
+        formData.append('file', photoFile);
+        const { data } = await api.post('/api/tenant/maintenance-queries/photo', formData);
+        photoUrl = data.url;
+      }
+      await api.post('/api/tenant/maintenance-queries', { ...queryForm, photoUrl });
+      setQueryForm({ title: '', description: '', category: 'PLUMBING', priority: 'MEDIUM' });
+      setPhotoFile(null);
+      refreshAll();
+    } catch (err) {
+      setError(err.response?.data?.error || err.message);
+    } finally {
+      setSubmittingQuery(false);
+    }
+  };
+
   const payBill = async (bill) => {
     setPayingBillId(bill.id);
     setError(null);
     try {
       const { data: payment } = await api.post('/api/tenant/payments/order', { billId: bill.id });
-
       const options = {
         key: import.meta.env.VITE_RAZORPAY_KEY_ID,
-        amount: Math.round(payment.amount * 100), // paise
+        amount: Math.round(payment.amount * 100),
         currency: 'INR',
         name: 'Tenant Portal',
         description: `Bill #${bill.id} — ${bill.billMonth}/${bill.billYear}`,
@@ -61,7 +95,6 @@ export default function TenantDashboard() {
         },
         modal: { ondismiss: () => setPayingBillId(null) },
       };
-
       if (!window.Razorpay) {
         setError('Razorpay Checkout script did not load — check your connection.');
         setPayingBillId(null);
@@ -71,33 +104,6 @@ export default function TenantDashboard() {
     } catch (err) {
       setError(err.response?.data?.error || err.message);
       setPayingBillId(null);
-    }
-  };
-
-  const raiseQuery = async (e) => {
-    e.preventDefault();
-    setSubmittingQuery(true);
-    setError(null);
-    try {
-      let photoUrl = null;
-      if (photoFile) {
-        const formData = new FormData();
-        formData.append('file', photoFile);
-        // No explicit Content-Type here — axios/the browser set it automatically
-        // for FormData, including the required multipart boundary. Setting it
-        // manually without a boundary breaks the upload on the server side.
-        const { data } = await api.post('/api/tenant/maintenance-queries/photo', formData);
-        photoUrl = data.url;
-      }
-
-      await api.post('/api/tenant/maintenance-queries', { ...queryForm, photoUrl });
-      setQueryForm({ title: '', description: '', category: 'PLUMBING', priority: 'MEDIUM' });
-      setPhotoFile(null);
-      refreshAll();
-    } catch (err) {
-      setError(err.response?.data?.error || err.message);
-    } finally {
-      setSubmittingQuery(false);
     }
   };
 
@@ -112,108 +118,158 @@ export default function TenantDashboard() {
     link.remove();
   };
 
+  const raiseDispute = async (e) => {
+    e.preventDefault();
+    try {
+      await api.post(`/api/tenant/bills/${disputeForm.billId}/dispute`, {
+        lineItemId: Number(disputeForm.lineItemId),
+        reason: disputeForm.reason,
+        evidencePhotoUrl: null,
+      });
+      setDisputeForm({ billId: '', lineItemId: '', reason: '' });
+      refreshAll();
+    } catch (err) {
+      setError(err.response?.data?.error || err.message);
+    }
+  };
+
+  const selectedBillItems = disputeForm.billId ? lineItemsByBill[disputeForm.billId] : null;
+
   return (
-      <div style={{ padding: '2rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h1>Tenant Dashboard</h1>
-          <UserButton />
-        </div>
+    <Layout title="My dashboard">
+      {error && <div className="error-banner">{error}</div>}
 
-        {error && <p style={{ color: 'red' }}>Error: {error}</p>}
-
-        <h2>Raise a Maintenance Query</h2>
-        <form onSubmit={raiseQuery} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-          <input placeholder="Title" value={queryForm.title}
-                 onChange={(e) => setQueryForm({ ...queryForm, title: e.target.value })} required />
-          <input placeholder="Description" value={queryForm.description}
-                 onChange={(e) => setQueryForm({ ...queryForm, description: e.target.value })} required />
-          <select value={queryForm.category} onChange={(e) => setQueryForm({ ...queryForm, category: e.target.value })}>
-            <option value="PLUMBING">Plumbing</option>
-            <option value="ELECTRICAL">Electrical</option>
-            <option value="CARPENTRY">Carpentry</option>
-            <option value="OTHER">Other</option>
-          </select>
-          <select value={queryForm.priority} onChange={(e) => setQueryForm({ ...queryForm, priority: e.target.value })}>
-            <option value="LOW">Low</option>
-            <option value="MEDIUM">Medium</option>
-            <option value="HIGH">High</option>
-            <option value="URGENT">Urgent</option>
-          </select>
-          <input type="file" accept="image/*" onChange={(e) => setPhotoFile(e.target.files[0])} />
-          <button type="submit" disabled={submittingQuery}>
-            {submittingQuery ? 'Submitting...' : 'Raise Query'}
+      {/* Maintenance queries */}
+      <div className="panel">
+        <div className="panel-header"><h2>Your maintenance queries</h2></div>
+        {!queries && <p className="empty-state">Loading…</p>}
+        {queries && queries.length === 0 && <p className="empty-state">Nothing raised yet — use the form below if something needs fixing.</p>}
+        {queries && queries.length > 0 && (
+          <table>
+            <thead><tr><th>Title</th><th>Category</th><th>Priority</th><th>Status</th></tr></thead>
+            <tbody>{queries.map((q) => (
+              <tr key={q.id}><td>{q.title}</td><td>{q.category}</td><td>{q.priority}</td><td><StatusPill status={q.status} /></td></tr>
+            ))}</tbody>
+          </table>
+        )}
+      </div>
+      <div className="panel panel-form">
+        <h3>Raise a maintenance query</h3>
+        <form onSubmit={raiseQuery} className="field-row" style={{ marginTop: '0.75rem' }}>
+          <div className="field"><label>Title</label>
+            <input value={queryForm.title} onChange={(e) => setQueryForm({ ...queryForm, title: e.target.value })} required /></div>
+          <div className="field"><label>Description</label>
+            <input value={queryForm.description} onChange={(e) => setQueryForm({ ...queryForm, description: e.target.value })} required /></div>
+          <div className="field"><label>Category</label>
+            <select value={queryForm.category} onChange={(e) => setQueryForm({ ...queryForm, category: e.target.value })}>
+              <option value="PLUMBING">Plumbing</option>
+              <option value="ELECTRICAL">Electrical</option>
+              <option value="CARPENTRY">Carpentry</option>
+              <option value="OTHER">Other</option>
+            </select></div>
+          <div className="field"><label>Priority</label>
+            <select value={queryForm.priority} onChange={(e) => setQueryForm({ ...queryForm, priority: e.target.value })}>
+              <option value="LOW">Low</option>
+              <option value="MEDIUM">Medium</option>
+              <option value="HIGH">High</option>
+              <option value="URGENT">Urgent</option>
+            </select></div>
+          <div className="field"><label>Photo (optional)</label>
+            <input type="file" accept="image/*" onChange={(e) => setPhotoFile(e.target.files[0])} /></div>
+          <button className="btn btn-primary" type="submit" disabled={submittingQuery}>
+            {submittingQuery ? 'Submitting…' : 'Raise query'}
           </button>
         </form>
+      </div>
 
-        <h2 style={{ marginTop: '1.5rem' }}>Your Maintenance Queries</h2>
-        {!queries && <p>Loading...</p>}
-        {queries && queries.length === 0 && <p>No open requests.</p>}
-        {queries && queries.length > 0 && (
-            <ul>
-              {queries.map((q) => <li key={q.id}>{q.title} — {q.status}</li>)}
-            </ul>
-        )}
-
-        <div style={sectionStyle}>
-          <h2>Your Bills</h2>
-          {!bills && <p>Loading...</p>}
-          {bills && bills.length === 0 && <p>No bills yet.</p>}
-          {bills && bills.map((bill) => {
-            const due = bill.totalAmount - bill.paidAmount;
-            // bill.status is overloaded — it tracks BOTH payment lifecycle
-            // (PAID/OVERDUE) and dispute lifecycle (DISPUTED), and raising a
-            // dispute on an already-paid bill overwrites status away from
-            // PAID even though paidAmount still correctly reflects the
-            // payment. So "was this bill paid" has to be checked via the
-            // amount, not the status string, or the receipt button
-            // incorrectly disappears the moment a dispute gets raised.
-            const isFullyPaid = bill.paidAmount >= bill.totalAmount;
-            return (
-                <div key={bill.id} style={{ marginBottom: '0.75rem' }}>
-                  <strong>Bill #{bill.id}</strong> — {bill.billMonth}/{bill.billYear} —
-                  {' '}₹{bill.totalAmount} total, ₹{due} due — <em>{bill.status}</em>
+      {/* Bills */}
+      <div className="panel">
+        <div className="panel-header"><h2>Your bills</h2></div>
+        {!bills && <p className="empty-state">Loading…</p>}
+        {bills && bills.length === 0 && <p className="empty-state">No bills yet.</p>}
+        {bills && bills.map((bill) => {
+          const due = bill.totalAmount - bill.paidAmount;
+          const isFullyPaid = bill.paidAmount >= bill.totalAmount;
+          const items = lineItemsByBill[bill.id];
+          return (
+            <div key={bill.id} style={{ padding: '0.6rem 0', borderBottom: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <strong>Bill #{bill.id}</strong> — {bill.billMonth}/{bill.billYear}{' '}
+                  <span className="num">₹{bill.totalAmount} total, ₹{due} due</span>{' '}
+                  <StatusPill status={bill.status} />
+                </div>
+                <div className="row-actions">
+                  <button className="btn btn-outline" onClick={() => toggleLineItems(bill.id)}>
+                    {expandedBillId === bill.id ? 'Hide items' : 'View items'}
+                  </button>
                   {due > 0 && bill.status !== 'DISPUTED' && (
-                      <button
-                          onClick={() => payBill(bill)}
-                          disabled={payingBillId === bill.id}
-                          style={{ marginLeft: '0.75rem' }}
-                      >
-                        {payingBillId === bill.id ? 'Processing...' : 'Pay'}
-                      </button>
+                    <button className="btn btn-accent" onClick={() => payBill(bill)} disabled={payingBillId === bill.id}>
+                      {payingBillId === bill.id ? 'Processing…' : 'Pay'}
+                    </button>
                   )}
                   {isFullyPaid && (
-                      <button onClick={() => downloadReceipt(bill.id)} style={{ marginLeft: '0.75rem' }}>
-                        Download Receipt
-                      </button>
+                    <button className="btn btn-outline" onClick={() => downloadReceipt(bill.id)}>Receipt</button>
                   )}
                 </div>
-            );
-          })}
-        </div>
-
-        <div style={sectionStyle}>
-          <h2>Your Disputes</h2>
-          {!disputes && <p>Loading...</p>}
-          {disputes && disputes.length === 0 && <p>No disputes raised.</p>}
-          {disputes && disputes.map((d) => (
-              <div key={d.id}>
-                Dispute #{d.id} — {d.reason} — <em>{d.status}</em>
-                {d.ownerResponse && <> — Owner: {d.ownerResponse}</>}
               </div>
-          ))}
-        </div>
-
-        <div style={sectionStyle}>
-          <h2>Rent Agreement</h2>
-          {!rentAgreements && <p>Loading...</p>}
-          {rentAgreements && rentAgreements.length === 0 && <p>No active agreement on file.</p>}
-          {rentAgreements && rentAgreements.map((a) => (
-              <div key={a.id}>
-                ₹{a.baseRent}/month, {a.escalationPercent}% escalation —
-                next change {a.nextEscalationDate}: ₹{a.nextRentAmount}
-              </div>
-          ))}
-        </div>
+              {expandedBillId === bill.id && items && (
+                <table style={{ marginTop: '0.5rem' }}>
+                  <thead><tr><th>Type</th><th>Description</th><th>Amount</th></tr></thead>
+                  <tbody>{items.map((li) => (
+                    <tr key={li.id}><td>{li.type}</td><td>{li.description}</td><td className="num">₹{li.amount}</td></tr>
+                  ))}</tbody>
+                </table>
+              )}
+            </div>
+          );
+        })}
       </div>
+
+      {/* Disputes */}
+      <div className="panel">
+        <div className="panel-header"><h2>Your disputes</h2></div>
+        {!disputes && <p className="empty-state">Loading…</p>}
+        {disputes && disputes.length === 0 && <p className="empty-state">No disputes raised.</p>}
+        {disputes && disputes.map((d) => (
+          <div key={d.id} style={{ padding: '0.4rem 0' }}>
+            Dispute #{d.id} — {d.reason} <StatusPill status={d.status} />
+            {d.ownerResponse && <div className="helptext">Owner: {d.ownerResponse}</div>}
+          </div>
+        ))}
+      </div>
+      <div className="panel panel-form">
+        <h3>Dispute a charge</h3>
+        <form onSubmit={raiseDispute} className="field-row" style={{ marginTop: '0.75rem' }}>
+          <div className="field"><label>Bill</label>
+            <select value={disputeForm.billId}
+                    onChange={(e) => { setDisputeForm({ ...disputeForm, billId: e.target.value, lineItemId: '' }); ensureLineItemsLoaded(e.target.value); }}
+                    required>
+              <option value="" disabled>Select…</option>
+              {bills?.map((b) => <option key={b.id} value={b.id}>Bill #{b.id} — {b.billMonth}/{b.billYear}</option>)}
+            </select></div>
+          <div className="field"><label>Line item</label>
+            <select value={disputeForm.lineItemId} onChange={(e) => setDisputeForm({ ...disputeForm, lineItemId: e.target.value })} required disabled={!disputeForm.billId}>
+              <option value="" disabled>Select…</option>
+              {selectedBillItems?.map((li) => <option key={li.id} value={li.id}>{li.type} — ₹{li.amount}</option>)}
+            </select></div>
+          <div className="field"><label>Reason</label>
+            <input value={disputeForm.reason} onChange={(e) => setDisputeForm({ ...disputeForm, reason: e.target.value })} required /></div>
+          <button className="btn btn-primary" type="submit">Raise dispute</button>
+        </form>
+      </div>
+
+      {/* Rent agreement */}
+      <div className="panel">
+        <div className="panel-header"><h2>Rent agreement</h2></div>
+        {!rentAgreements && <p className="empty-state">Loading…</p>}
+        {rentAgreements && rentAgreements.length === 0 && <p className="empty-state">No active agreement on file.</p>}
+        {rentAgreements && rentAgreements.map((a) => (
+          <div key={a.id} className="num">
+            ₹{a.baseRent}/month, {a.escalationPercent}% escalation — next change {a.nextEscalationDate}: ₹{a.nextRentAmount}
+          </div>
+        ))}
+      </div>
+    </Layout>
   );
 }

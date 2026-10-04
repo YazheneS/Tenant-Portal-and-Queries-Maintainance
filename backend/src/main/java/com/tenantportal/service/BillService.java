@@ -41,6 +41,10 @@ public class BillService {
         return billRepository.findByTenantId(tenantId);
     }
 
+    public List<Bill> findAll() {
+        return billRepository.findAll();
+    }
+
     public Bill getByIdOrThrow(Long id) {
         return billRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Bill not found: " + id));

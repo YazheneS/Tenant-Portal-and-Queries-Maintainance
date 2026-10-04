@@ -75,6 +75,11 @@ public class AdminController {
         return unitService.findByPropertyId(propertyId);
     }
 
+    @GetMapping("/units")
+    public List<Unit> allUnits() {
+        return unitService.findAll();
+    }
+
     @PostMapping("/units")
     public Unit createUnit(@RequestBody com.tenantportal.dto.CreateUnitRequest request) {
         return unitService.create(request, currentUser.clerkUserId());
@@ -116,6 +121,11 @@ public class AdminController {
 
     // --- Billing (Module 4) ---
 
+    @GetMapping("/bills")
+    public List<Bill> allBills() {
+        return billService.findAll();
+    }
+
     @PostMapping("/bills")
     public Bill createBill(@RequestBody CreateBillRequest request) {
         return billService.create(request, currentUser.clerkUserId());
@@ -154,6 +164,11 @@ public class AdminController {
 
     // --- Rent Agreements (Module 6) ---
 
+    @GetMapping("/rent-agreements")
+    public List<RentAgreement> allRentAgreements() {
+        return rentAgreementService.findAll();
+    }
+
     @PostMapping("/rent-agreements")
     public RentAgreement createRentAgreement(@RequestBody com.tenantportal.dto.CreateRentAgreementRequest request) {
         return rentAgreementService.create(request, currentUser.clerkUserId());
@@ -165,6 +180,11 @@ public class AdminController {
     }
 
     // --- Tenant occupancy ---
+
+    @GetMapping("/tenants")
+    public List<com.tenantportal.model.Tenant> allTenants() {
+        return tenantService.findAll();
+    }
 
     @PostMapping("/tenants/{tenantId}/assign-unit/{unitId}")
     public com.tenantportal.model.Tenant assignTenantToUnit(@PathVariable Long tenantId, @PathVariable Long unitId) {

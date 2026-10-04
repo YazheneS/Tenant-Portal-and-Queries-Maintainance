@@ -46,6 +46,10 @@ public class RentAgreementService {
         return rentAgreementRepository.findByTenantId(tenantId);
     }
 
+    public List<RentAgreement> findAll() {
+        return rentAgreementRepository.findAll();
+    }
+
     /**
      * Resolves unit/tenant by id through their repositories rather than
      * trusting nested objects from the request body — same

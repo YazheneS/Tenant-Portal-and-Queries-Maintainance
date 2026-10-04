@@ -1,0 +1,180 @@
+/* Tenant Portal design system.
+   Palette: pale sage paper + deep teal ink + brass/gold accent — chosen for
+   a property-management tool (deeds, keys, brass fittings), deliberately
+   away from the cream+terracotta combination that reads as generic
+   AI-dashboard default. */
+
+:root {
+  --bg: #eff1eb;
+  --surface: #ffffff;
+  --surface-raised: #f7f8f4;
+  --border: #d9ddd2;
+  --border-strong: #c3c9ba;
+
+  --ink: #1c2b27;
+  --ink-soft: #55645f;
+  --ink-faint: #8b968f;
+
+  --brand: #1f4b43;
+  --brand-dark: #163a33;
+  --accent: #b8862e;
+  --accent-dark: #93691f;
+
+  --success: #3c7a5c;
+  --success-bg: #e3efe7;
+  --warning: #b8862e;
+  --warning-bg: #f6edd9;
+  --danger: #b04a3a;
+  --danger-bg: #f5e4e0;
+  --info: #3d6b8c;
+  --info-bg: #e2eaf0;
+
+  --radius: 6px;
+  --shadow: 0 1px 2px rgba(28, 43, 39, 0.08);
+  --font: 'Work Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+h1, h2, h3 { font-family: var(--font); margin: 0; color: var(--ink); }
+h1 { font-size: 1.65rem; font-weight: 600; letter-spacing: -0.01em; }
+h2 { font-size: 1.05rem; font-weight: 600; }
+h3 { font-size: 0.95rem; font-weight: 600; }
+
+a { color: var(--brand); }
+
+/* ---- Layout shell ---- */
+.app-shell { display: flex; min-height: 100vh; }
+
+.sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  background: var(--brand);
+  color: #e9efec;
+  padding: 1.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+.sidebar-brand { font-size: 1.05rem; font-weight: 600; color: #fff; padding: 0 0.5rem; }
+.sidebar-nav { display: flex; flex-direction: column; gap: 0.15rem; }
+.sidebar-link {
+  color: #c9d8d1;
+  text-decoration: none;
+  padding: 0.55rem 0.65rem;
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+.sidebar-link:hover { background: rgba(255,255,255,0.08); color: #fff; }
+.sidebar-link.active { background: rgba(255,255,255,0.14); color: #fff; }
+
+.main-area { flex: 1; min-width: 0; }
+.topbar {
+  height: 60px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.75rem;
+}
+.content { padding: 1.75rem; max-width: 980px; }
+
+/* ---- Panels (replace identical rounded-shadow cards with a left-border
+   accent — differentiates sections without the SaaS-card-kit sameness) ---- */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--brand);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.25rem;
+}
+.panel-form { border-left-color: var(--accent); background: var(--surface-raised); }
+.panel-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.85rem; }
+
+/* ---- Forms ---- */
+.field-row { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: flex-end; }
+.field { display: flex; flex-direction: column; gap: 0.3rem; }
+.field label { font-size: 0.78rem; color: var(--ink-soft); font-weight: 500; }
+input, select, textarea {
+  font-family: var(--font);
+  font-size: 0.88rem;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+}
+input:focus, select:focus, textarea:focus {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+  border-color: var(--brand);
+}
+
+/* ---- Buttons ---- */
+.btn {
+  font-family: var(--font);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.5rem 0.95rem;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-primary { background: var(--brand); color: #fff; }
+.btn-primary:hover { background: var(--brand-dark); }
+.btn-accent { background: var(--accent); color: #fff; }
+.btn-accent:hover { background: var(--accent-dark); }
+.btn-outline { background: transparent; color: var(--brand); border-color: var(--border-strong); }
+.btn-outline:hover { border-color: var(--brand); }
+.btn-danger-outline { background: transparent; color: var(--danger); border-color: var(--danger); }
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* ---- Status pills — color encodes state, sentence case not caps ---- */
+.pill {
+  display: inline-block;
+  font-size: 0.74rem;
+  font-weight: 600;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+}
+.pill-open, .pill-generated, .pill-raised { background: var(--info-bg); color: var(--info); }
+.pill-assigned, .pill-under_review { background: var(--warning-bg); color: var(--warning); }
+.pill-in_progress { background: var(--warning-bg); color: var(--warning); }
+.pill-resolved, .pill-paid, .pill-accepted, .pill-confirmed, .pill-closed { background: var(--success-bg); color: var(--success); }
+.pill-overdue, .pill-disputed, .pill-rejected, .pill-failed { background: var(--danger-bg); color: var(--danger); }
+
+/* ---- Tables ---- */
+table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+th { text-align: left; font-size: 0.75rem; color: var(--ink-soft); font-weight: 600; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--border); }
+td { padding: 0.55rem 0.5rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.row-actions { display: flex; gap: 0.4rem; }
+
+/* ---- Empty state — a direct next action, not just an absence notice ---- */
+.empty-state { color: var(--ink-soft); font-size: 0.88rem; padding: 0.5rem 0; }
+
+.error-banner {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.85rem;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.helptext { font-size: 0.78rem; color: var(--ink-faint); margin-top: 0.4rem; }
