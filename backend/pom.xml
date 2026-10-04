@@ -69,6 +69,13 @@
             <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
         </dependency>
 
+        <!-- Clerk webhook signature verification (Clerk uses Svix under the hood) -->
+        <dependency>
+            <groupId>com.svix</groupId>
+            <artifactId>svix</artifactId>
+            <version>1.99.1</version>
+        </dependency>
+
         <!-- Module 5 — Razorpay payments -->
         <dependency>
             <groupId>com.razorpay</groupId>
